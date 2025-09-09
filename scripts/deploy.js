@@ -9,21 +9,27 @@ async function main() {
   const [deployer] = await hre.ethers.getSigners();
 
   console.log("📝 Deploying contracts with the account:", deployer.address);
-  console.log("💰 Account balance:", (await deployer.getBalance()).toString());
+  console.log("💰 Account balance:", (await hre.ethers.provider.getBalance(deployer.address)).toString());
 
   // Deploy TouristID contract
   const TouristID = await hre.ethers.getContractFactory("TouristID");
   const touristID = await TouristID.deploy();
 
-  await touristID.deployed();
+  await touristID.waitForDeployment();
 
-  console.log("✅ TouristID contract deployed to:", touristID.address);
-  console.log("⛽ Gas used for deployment:", (await touristID.deployTransaction.wait()).gasUsed.toString());
+  console.log("✅ TouristID contract deployed to:", await touristID.getAddress());
+  const deployTx = touristID.deploymentTransaction();
+  if (deployTx) {
+    const receipt = await deployTx.wait();
+    console.log("⛽ Gas used for deployment:", receipt.gasUsed.toString());
+  }
 
   // Save the contract address and ABI to frontend
+  const contractAddress = await touristID.getAddress();
+  const network = await hre.ethers.provider.getNetwork();
   const contractInfo = {
-    address: touristID.address,
-    chainId: (await hre.ethers.provider.getNetwork()).chainId,
+    address: contractAddress,
+    chainId: network.chainId.toString(),
     deployer: deployer.address,
     deployedAt: new Date().toISOString()
   };
@@ -57,10 +63,10 @@ async function main() {
   // Verification info for testnet
   if (hre.network.name !== "hardhat" && hre.network.name !== "localhost") {
     console.log("\n🔍 To verify the contract on Etherscan, run:");
-    console.log(`npx hardhat verify --network ${hre.network.name} ${touristID.address}`);
+    console.log(`npx hardhat verify --network ${hre.network.name} ${contractAddress}`);
   }
 
-  return touristID.address;
+  return contractAddress;
 }
 
 // We recommend this pattern to be able to use async/await everywhere
